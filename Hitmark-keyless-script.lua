@@ -7,7 +7,7 @@ local Config = {
     Aimbot = false,
     Triggerbot = false,
     ESP = false,
-    Smoothness = 5,
+    Smoothness = 1, -- Initial Strength Value
     Prediction = 0.1,
     FOV = 150
 }
@@ -74,7 +74,7 @@ end
 
 -- MAIN COMBAT & VISUAL LOOP
 RunService.RenderStepped:Connect(function()
-    -- 1. AIMBOT
+    -- 1. AIMBOT (DYNAMIC STRENGTH)
     if Config.Aimbot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
         local data = GetClosestTarget()
         if data and mousemoverel then
@@ -85,7 +85,16 @@ RunService.RenderStepped:Connect(function()
             
             if onScreen then
                 local mousePos = UserInputService:GetMouseLocation()
-                mousemoverel((screenPos.X - mousePos.X) / Config.Smoothness, (screenPos.Y - mousePos.Y) / Config.Smoothness)
+                
+                -- Strength Logic: 
+                -- If Strength is 20, divisor is 1 (Hard Lock). 
+                -- If Strength is 1, divisor is 20 (Smooth Assist).
+                local sensitivity = (21 - Config.Smoothness)
+                
+                local moveX = (screenPos.X - mousePos.X) / sensitivity
+                local moveY = (screenPos.Y - mousePos.Y) / sensitivity
+                
+                mousemoverel(moveX, moveY)
             end
         end
     end
@@ -116,21 +125,21 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 3. INTERFACE (RE-LINKED)
+-- 3. INTERFACE
 -- ==========================================
 MainTab:CreateSection("Targeting")
 
 MainTab:CreateToggle({
-    Name = "Mouse Aimbot",
+    Name = "Aimbot",
     CurrentValue = false,
     Callback = function(v) Config.Aimbot = v end,
 })
 
 MainTab:CreateSlider({
-    Name = "Aim Strength",
+    Name = "Strength",
     Range = {1, 20},
     Increment = 1,
-    CurrentValue = 5,
+    CurrentValue = 15,
     Callback = function(v) Config.Smoothness = v end,
 })
 
@@ -138,14 +147,14 @@ MainTab:CreateSlider({
     Name = "Aim Prediction",
     Range = {0, 30},
     Increment = 1,
-    CurrentValue = 10,
+    CurrentValue = 0,
     Callback = function(v) Config.Prediction = v / 100 end,
 })
 
 MainTab:CreateSection("Visuals & Automatics")
 
 MainTab:CreateToggle({
-    Name = "Purple Chams",
+    Name = "Player ESP",
     CurrentValue = false,
     Callback = function(v) 
         Config.ESP = v 
