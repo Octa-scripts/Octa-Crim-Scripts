@@ -128,7 +128,7 @@ end)
 -- ==========================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Rayfield:CreateWindow({ 
-    Name = "Octa Hub", 
+    Name = "🔫Criminality Script┃ Octa Hub", 
     Theme = "Amethyst", 
     ConfigurationSaving = { Enabled = false }
 })
