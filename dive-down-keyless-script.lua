@@ -1,110 +1,115 @@
--- [[ OCTA HUB - DIVE DOWN ]] --
--- [[ VERSION: V6.6 | 4000 STUD DEPTH UPDATE ]] --
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local LP = game:GetService("Players").LocalPlayer
 
 local Window = Rayfield:CreateWindow({
-    Name = "Octa Hub | Dive Down 🌊",
-    LoadingTitle = "Calibrating to 4,000 Studs...",
-    Theme = "Amethyst",
-    ConfigurationSaving = { Enabled = false }
+   Name = "Dev Suite | Tactical Testing",
+   LoadingTitle = "Initializing Engine",
+   LoadingSubtitle = "Testing & Debugging Suite",
+   ConfigurationSaving = { Enabled = false }
 })
 
-local MainTab = Window:CreateTab("Movement", 4483362458)
-local SavedAquariumCFrame = nil
+local VisualsTab = Window:CreateTab("Visuals (ESP)", 4483362458)
+local CombatTab = Window:CreateTab("Combat (Aimbot)", 4483362458)
 
--- [[ THE "STABLE" ENGINES ]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
-local function RelativeMove(yOffset, anchorTime)
-    local char = LP.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if root then
-        root.Anchored = true
-        root.CFrame = root.CFrame * CFrame.new(0, yOffset, 0)
-        task.wait(anchorTime or 2)
-        root.Anchored = false
-    end
-end
+_G.ESPEnabled = false
+_G.AimbotEnabled = false
+_G.AimFOV = 150
 
-local function AbsoluteMove(targetCFrame, anchorTime)
-    local char = LP.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    if root then
-        root.Anchored = true
-        root.CFrame = targetCFrame
-        task.wait(anchorTime or 2)
-        root.Anchored = false
-    end
-end
+-- --- VISUALS TAB (ESP) ---
+VisualsTab:CreateToggle({
+   Name = "Player Highlights (ESP)",
+   CurrentValue = false,
+   Flag = "ESP_Toggle",
+   Callback = function(Value)
+      _G.ESPEnabled = Value
+      task.spawn(function()
+          while _G.ESPEnabled do
+              for _, player in ipairs(Players:GetPlayers()) do
+                  if player ~= LocalPlayer and player.Character then
+                      local char = player.Character
+                      if not char:FindFirstChild("DevHighlight") then
+                          local hl = Instance.new("Highlight")
+                          hl.Name = "DevHighlight"
+                          hl.Adornee = char
+                          hl.FillColor = Color3.fromRGB(255, 50, 50)
+                          hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                          hl.FillTransparency = 0.4
+                          hl.Parent = char
+                      end
+                  end
+              end
+              task.wait(1)
+          end
+          -- Clean up highlights when turned off
+          for _, player in ipairs(Players:GetPlayers()) do
+              if player.Character and player.Character:FindFirstChild("DevHighlight") then
+                  player.Character.DevHighlight:Destroy()
+              end
+          end
+      end)
+   end,
+})
 
--- [[ INSTRUCTIONS SECTION ]]
-MainTab:CreateSection("⚠️ HOW TO USE")
-MainTab:CreateLabel("1. Stand ABOVE the water at the surface first.")
-MainTab:CreateLabel("2. Align yourself over the open ocean area.")
-MainTab:CreateLabel("3. Use 'Bottom Floor' for the -4k deep jump.")
+-- --- COMBAT TAB (AIMBOT / TARGET LOCK) ---
+CombatTab:CreateToggle({
+   Name = "Target Lock (Aimbot)",
+   CurrentValue = false,
+   Flag = "Aimbot_Toggle",
+   Callback = function(Value)
+      _G.AimbotEnabled = Value
+   end,
+})
 
--- [[ 1. OXYGEN REFILL ]]
-MainTab:CreateSection("Survival")
+CombatTab:CreateSlider({
+   Name = "Aimbot FOV Radius",
+   Range = {50, 400},
+   Increment = 10,
+   CurrentValue = 150,
+   Flag = "FOV_Slider",
+   Callback = function(Value)
+      _G.AimFOV = Value
+   end,
+})
 
-MainTab:CreateButton({
-    Name = "Instant Oxygen Refill",
-    Callback = function()
-        local root = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        if root then
-            local startPos = root.CFrame
-            -- TP to Y: 5000 (Safe Sky) to force oxygen reset
-            root.CFrame = CFrame.new(root.Position.X, 5000, root.Position.Z)
-            task.wait(1.5)
-            AbsoluteMove(startPos, 1.5)
-            Rayfield:Notify({Title = "Refilled", Content = "Air tank is back to 100%"})
+-- Main Target Loop
+RunService.RenderStepped:Connect(function()
+    if _G.AimbotEnabled then
+        local closestTarget = nil
+        local shortestDist = math.huge
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local hum = player.Character:FindFirstChildOfClass("Humanoid")
+                if hum and hum.Health > 0 then
+                    local hrp = player.Character.HumanoidRootPart
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                    
+                    if onScreen then
+                        local mousePos = UserInputService:GetMouseLocation()
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        
+                        if dist < shortestDist and dist < _G.AimFOV then
+                            shortestDist = dist
+                            closestTarget = hrp
+                        end
+                    end
+                end
+            end
+        end
+        
+        if closestTarget then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
         end
     end
-})
+end)
 
--- [[ 2. DEPTH JUMPS ]]
-MainTab:CreateSection("Depth Jumps")
-
-MainTab:CreateButton({
-    Name = "Shallow Jump (-1,000 Studs)",
-    Callback = function()
-        RelativeMove(-1000, 2)
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Bottom Floor (-4,000 Studs)",
-    Callback = function()
-        Rayfield:Notify({
-            Title = "Diving to Bottom",
-            Content = "Dropping to the 4,000 stud limit.",
-            Duration = 3
-        })
-        -- Updated to exactly 4,000 as requested
-        RelativeMove(-4000, 2.5) 
-    end
-})
-
--- [[ 3. AQUARIUM ]]
-MainTab:CreateSection("Aquarium")
-
-MainTab:CreateButton({
-    Name = "Set Aquarium Waypoint",
-    Callback = function()
-        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-            SavedAquariumCFrame = LP.Character.HumanoidRootPart.CFrame
-            Rayfield:Notify({Title = "Saved!", Content = "Waypoint set successfully."})
-        end
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Teleport to Aquarium",
-    Callback = function()
-        if SavedAquariumCFrame then
-            AbsoluteMove(SavedAquariumCFrame, 2)
-        else
-            Rayfield:Notify({Title = "Error", Content = "No waypoint saved. Click 'Set' while at your base!"})
-        end
-    end
+Rayfield:Notify({
+   Title = "Dev Suite Loaded",
+   Content = "Rayfield UI initialized successfully.",
+   Duration = 5,
 })
