@@ -19,6 +19,7 @@ local Camera = workspace.CurrentCamera
 _G.ESPEnabled = false
 _G.AimbotEnabled = false
 _G.AimFOV = 150
+_G.AimSmoothness = 0.5 -- Default smoothness factor (0.1 to 1.0)
 
 -- --- VISUALS TAB (ESP) ---
 VisualsTab:CreateToggle({
@@ -55,7 +56,7 @@ VisualsTab:CreateToggle({
    end,
 })
 
--- --- COMBAT TAB (AIMBOT / TARGET LOCK) ---
+-- --- COMBAT TAB (AIMBOT) ---
 CombatTab:CreateToggle({
    Name = "Target Lock (Aimbot)",
    CurrentValue = false,
@@ -76,40 +77,59 @@ CombatTab:CreateSlider({
    end,
 })
 
--- Main Target Loop
+CombatTab:CreateSlider({
+   Name = "Aimbot Strength / Smoothness",
+   Range = {1, 10},
+   Increment = 1,
+   CurrentValue = 5,
+   Flag = "Smoothness_Slider",
+   Callback = function(Value)
+      -- Convert 1-10 range into a smooth interpolation factor (0.1 to 1.0)
+      _G.AimSmoothness = Value / 10
+   end,
+})
+
+-- Main Target Loop with Hold-to-Aim (Right Click)
 RunService.RenderStepped:Connect(function()
     if _G.AimbotEnabled then
-        local closestTarget = nil
-        local shortestDist = math.huge
+        -- Check if the user is holding down the Right Mouse Button (Mouse2)
+        local isHoldingAim = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local hum = player.Character:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health > 0 then
-                    local hrp = player.Character.HumanoidRootPart
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-                    
-                    if onScreen then
-                        local mousePos = UserInputService:GetMouseLocation()
-                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+        if isHoldingAim then
+            local closestTarget = nil
+            local shortestDist = math.huge
+            
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local hum = player.Character:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 then
+                        local hrp = player.Character.HumanoidRootPart
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
                         
-                        if dist < shortestDist and dist < _G.AimFOV then
-                            shortestDist = dist
-                            closestTarget = hrp
+                        if onScreen then
+                            local mousePos = UserInputService:GetMouseLocation()
+                            local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                            
+                            if dist < shortestDist and dist < _G.AimFOV then
+                                shortestDist = dist
+                                closestTarget = hrp
+                            end
                         end
                     end
                 end
             end
-        end
-        
-        if closestTarget then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+            
+            if closestTarget then
+                local targetCF = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+                -- Smoothly interpolate camera rotation based on the smoothness slider
+                Camera.CFrame = Camera.CFrame:Lerp(targetCF, _G.AimSmoothness)
+            end
         end
     end
 end)
 
 Rayfield:Notify({
    Title = "Dev Suite Loaded",
-   Content = "Rayfield UI initialized successfully.",
+   Content = "Rayfield UI initialized with Hold-to-Aim & Smoothness settings.",
    Duration = 5,
 })
