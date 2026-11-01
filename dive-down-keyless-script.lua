@@ -19,7 +19,7 @@ local Camera = workspace.CurrentCamera
 _G.ESPEnabled = false
 _G.AimbotEnabled = false
 _G.AimFOV = 150
-_G.AimSmoothness = 0.5 -- Default smoothness factor (0.1 to 1.0)
+_G.AimSmoothness = 0.2 -- Lower is smoother/slower, higher is faster/snappier
 
 -- --- VISUALS TAB (ESP) ---
 VisualsTab:CreateToggle({
@@ -46,7 +46,6 @@ VisualsTab:CreateToggle({
               end
               task.wait(1)
           end
-          -- Clean up highlights when turned off
           for _, player in ipairs(Players:GetPlayers()) do
               if player.Character and player.Character:FindFirstChild("DevHighlight") then
                   player.Character.DevHighlight:Destroy()
@@ -78,33 +77,33 @@ CombatTab:CreateSlider({
 })
 
 CombatTab:CreateSlider({
-   Name = "Aimbot Strength / Smoothness",
-   Range = {1, 10},
+   Name = "Aimbot Smoothness",
+   Range = {1, 20},
    Increment = 1,
    CurrentValue = 5,
    Flag = "Smoothness_Slider",
    Callback = function(Value)
-      -- Convert 1-10 range into a smooth interpolation factor (0.1 to 1.0)
-      _G.AimSmoothness = Value / 10
+      -- Converts slider into a precise mathematical lerp alpha
+      _G.AimSmoothness = Value / 20
    end,
 })
 
--- Main Target Loop with Hold-to-Aim (Right Click)
+-- Main Target Loop (Requires holding Right Mouse Button)
 RunService.RenderStepped:Connect(function()
     if _G.AimbotEnabled then
-        -- Check if the user is holding down the Right Mouse Button (Mouse2)
-        local isHoldingAim = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+        -- Strict check for Right Mouse Button hold
+        local isHoldingRMB = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
         
-        if isHoldingAim then
+        if isHoldingRMB then
             local closestTarget = nil
             local shortestDist = math.huge
             
             for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
                     local hum = player.Character:FindFirstChildOfClass("Humanoid")
                     if hum and hum.Health > 0 then
-                        local hrp = player.Character.HumanoidRootPart
-                        local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                        local head = player.Character.Head
+                        local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
                         
                         if onScreen then
                             local mousePos = UserInputService:GetMouseLocation()
@@ -112,7 +111,7 @@ RunService.RenderStepped:Connect(function()
                             
                             if dist < shortestDist and dist < _G.AimFOV then
                                 shortestDist = dist
-                                closestTarget = hrp
+                                closestTarget = head
                             end
                         end
                     end
@@ -120,9 +119,9 @@ RunService.RenderStepped:Connect(function()
             end
             
             if closestTarget then
-                local targetCF = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
-                -- Smoothly interpolate camera rotation based on the smoothness slider
-                Camera.CFrame = Camera.CFrame:Lerp(targetCF, _G.AimSmoothness)
+                local targetCFrame = CFrame.new(Camera.CFrame.Position, closestTarget.Position)
+                -- Apply smooth transition using the slider value
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.AimSmoothness)
             end
         end
     end
@@ -130,6 +129,6 @@ end)
 
 Rayfield:Notify({
    Title = "Dev Suite Loaded",
-   Content = "Rayfield UI initialized with Hold-to-Aim & Smoothness settings.",
+   Content = "Head-targeting and smooth RMB aimbot active.",
    Duration = 5,
 })
